@@ -101,12 +101,18 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -1221,6 +1227,64 @@ public class EditorMicroservice implements Microservice {
                             build();
                 }
             }
+        }
+    }
+
+    @POST
+    @Path("/datastore")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response getDatabaseDetails(JsonElement element) {
+        String sampleJsonStr = "{\"driver\":\"com.mysql.jdbc.Driver\"," +
+                "\"url\": \"jdbc:mysql://localhost:3306/testdb\",\"username\": \"prabod\"," +
+                "\"password\": \"password\",\"tableName\": \"InternalDevicesTempTable\"}";
+        JsonObject jsonResponse = new JsonObject();
+//        JsonObject jsonObj = element.getAsJsonObject();
+        JsonObject jsonObj = new JsonParser().parse(sampleJsonStr).getAsJsonObject();
+        Map<String, String> dataStoreMap = new HashMap<>();
+        Set<String> keys = jsonObj.keySet();
+        for (String key : keys) {
+            dataStoreMap.put(key, jsonObj.get(key).toString().replaceAll("\"", ""));
+        }
+        if (!(dataStoreMap.containsKey("driver") && dataStoreMap.containsKey("url")
+                && dataStoreMap.containsKey("username") && dataStoreMap.containsKey("password")
+                && dataStoreMap.containsKey("tableName"))) {
+            return Response
+                    .serverError()
+                    .entity("Failed : cannot find all the required details for the datastore.")
+                    .build();
+        }
+        try {
+            String[] splittedURL = dataStoreMap.get("url").split(":");
+            if (splittedURL[0].equalsIgnoreCase("jdbc") &&
+                    (splittedURL[1].equalsIgnoreCase("mysql") ||
+                            splittedURL[1].equalsIgnoreCase("postgresql") ||
+                            splittedURL[1].equalsIgnoreCase("sqlserver") ||
+                            splittedURL[1].equalsIgnoreCase("oracle"))) {
+                Class.forName(dataStoreMap.get("driver"));
+                Connection conn = DriverManager.getConnection(dataStoreMap.get("url"), dataStoreMap.get("username"),
+                        dataStoreMap.get("password"));
+                Statement st = conn.createStatement();
+                ResultSet rs = st.executeQuery("SELECT * FROM " + dataStoreMap.get("tableName"));
+                ResultSetMetaData resultSetMetaData = rs.getMetaData();
+                int NumOfCol = resultSetMetaData.getColumnCount();
+                for (int i = 1; i <= NumOfCol; i++) {
+                    jsonResponse.addProperty(resultSetMetaData.getColumnName(i),
+                            resultSetMetaData.getColumnTypeName(i));
+                }
+                st.close();
+                conn.close();
+            }
+            return Response
+                    .status(Response.Status.OK)
+                    .entity(jsonResponse)
+                    .type(MediaType.APPLICATION_JSON)
+                    .build();
+        } catch (Exception e) {
+            return Response
+                    .serverError()
+                    .entity("Failed." + e.getMessage())
+                    .build();
         }
     }
 
