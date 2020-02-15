@@ -1235,12 +1235,8 @@ public class EditorMicroservice implements Microservice {
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     public Response getDatabaseDetails(JsonElement element) {
-        String sampleJsonStr = "{\"driver\":\"com.mysql.jdbc.Driver\"," +
-                "\"url\": \"jdbc:mysql://localhost:3306/testdb\",\"username\": \"prabod\"," +
-                "\"password\": \"password\",\"tableName\": \"InternalDevicesTempTable\"}";
         JsonObject jsonResponse = new JsonObject();
-//        JsonObject jsonObj = element.getAsJsonObject();
-        JsonObject jsonObj = new JsonParser().parse(sampleJsonStr).getAsJsonObject();
+        JsonObject jsonObj = element.getAsJsonObject();
         Map<String, String> dataStoreMap = new HashMap<>();
         Set<String> keys = jsonObj.keySet();
         for (String key : keys) {
@@ -1251,18 +1247,16 @@ public class EditorMicroservice implements Microservice {
                 && dataStoreMap.containsKey("tableName"))) {
             return Response
                     .serverError()
-                    .entity("Failed : cannot find all the required details for the datastore.")
+                    .entity("Failed : cannot find the required details for the datastore.")
                     .build();
         }
         try {
             String[] splittedURL = dataStoreMap.get("url").split(":");
             if (splittedURL[0].equalsIgnoreCase("jdbc") &&
-                    (splittedURL[1].equalsIgnoreCase("mysql") ||
-                            splittedURL[1].equalsIgnoreCase("postgresql") ||
-                            splittedURL[1].equalsIgnoreCase("sqlserver") ||
-                            splittedURL[1].equalsIgnoreCase("oracle"))) {
+                    splittedURL[1].equalsIgnoreCase("mysql")) {
                 Class.forName(dataStoreMap.get("driver"));
-                Connection conn = DriverManager.getConnection(dataStoreMap.get("url"), dataStoreMap.get("username"),
+                Connection conn = DriverManager.getConnection(dataStoreMap.get("url"),
+                        dataStoreMap.get("username"),
                         dataStoreMap.get("password"));
                 Statement st = conn.createStatement();
                 ResultSet rs = st.executeQuery("SELECT * FROM " + dataStoreMap.get("tableName"));
@@ -1274,6 +1268,13 @@ public class EditorMicroservice implements Microservice {
                 }
                 st.close();
                 conn.close();
+            } else {
+                return Response
+                        .status(Response.Status.OK)
+                        .entity("Unsupported schema. Expected schema: mysql. " +
+                                "Found: " + splittedURL[0] + ":" + splittedURL[1])
+                        .type(MediaType.APPLICATION_JSON)
+                        .build();
             }
             return Response
                     .status(Response.Status.OK)
@@ -1283,7 +1284,7 @@ public class EditorMicroservice implements Microservice {
         } catch (Exception e) {
             return Response
                     .serverError()
-                    .entity("Failed." + e.getMessage())
+                    .entity("Failed to connect with database." + e.getMessage())
                     .build();
         }
     }

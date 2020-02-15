@@ -131,6 +131,12 @@
             <groupId>org.wso2.carbon.analytics-common</groupId>
             <artifactId>org.wso2.carbon.analytics.idp.client</artifactId>
         </dependency>
+
+        <!--Dependencies for database-->
+        <dependency>
+            <groupId>mysql</groupId>
+            <artifactId>mysql-connector-java</artifactId>
+        </dependency>
     </dependencies>
 
     <properties>
@@ -143,6 +149,7 @@
             org.wso2.carbon.siddhi.editor.core.*
         </export.package>
         <import.package>
+            com.mysql.jdbc;version="${mysql.connector.version}",
             org.osgi.framework.*;version="${osgi.framework.import.version.range}",
             org.wso2.carbon.kernel;version="${carbon.kernel.package.import.version.range}",
             io.siddhi.*;version="${siddhi.version.range}",
