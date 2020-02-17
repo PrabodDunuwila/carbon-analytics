@@ -1253,7 +1253,9 @@ public class EditorMicroservice implements Microservice {
         try {
             String[] splittedURL = dataStoreMap.get("url").split(":");
             if (splittedURL[0].equalsIgnoreCase("jdbc") &&
-                    splittedURL[1].equalsIgnoreCase("mysql")) {
+                    (splittedURL[1].equalsIgnoreCase("mysql")
+                            || splittedURL[1].equalsIgnoreCase("sqlserver")
+                            || splittedURL[1].equalsIgnoreCase("oracle"))) {
                 Class.forName(dataStoreMap.get("driver"));
                 Connection conn = DriverManager.getConnection(dataStoreMap.get("url"),
                         dataStoreMap.get("username"),
